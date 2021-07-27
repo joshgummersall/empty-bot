@@ -50,6 +50,9 @@ const onTurnErrorHandler: typeof adapter.onTurnError = async (context, error) =>
     // Send a message to the user
     await context.sendActivity('The bot encountered an error or bug.');
     await context.sendActivity('To continue to run this bot, please fix the bot source code.');
+
+    // If you want to propagate error down to original HTTP request via restify error handler
+    throw error;
 };
 
 // Set the onTurnError for the singleton BotFrameworkAdapter.
@@ -59,11 +62,11 @@ adapter.onTurnError = onTurnErrorHandler;
 const myBot = new EchoBot();
 
 // Listen for incoming requests.
-server.post('/api/messages', (req, res) => {
+server.post('/api/messages', (req, res, next) => {
     adapter.processActivity(req, res, async (context) => {
         // Route to main dialog.
         await myBot.run(context);
-    });
+    }).catch(next);
 });
 
 // Listen for Upgrade requests for Streaming.
@@ -73,6 +76,7 @@ server.on('upgrade', (req, socket, head) => {
         appId: process.env.MicrosoftAppId,
         appPassword: process.env.MicrosoftAppPassword
     });
+
     // Set onTurnError for the BotFrameworkAdapter created for each connection.
     streamingAdapter.onTurnError = onTurnErrorHandler;
 
